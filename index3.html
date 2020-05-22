@@ -7,6 +7,7 @@
 <style>
 
 #scatter-gl-container,.canvas-wrapper{
+position: relative;
 display:inline-block;
 vertical-align:top;
 }
@@ -17,7 +18,7 @@ position:relative;
 width:270px;height:270px;
 }
 
-#scatter-gl-container canvas{
+.canvas-wrapper canvas {
 transform:translate3d(-50%,-50%,0);
 left:50%;
 top:50%;
@@ -35,6 +36,7 @@ position:absolute;
  <div class="container">
   <div class="canvas-wrapper">
    <canvas id="output" ></canvas>
+   <canvas id="output1" ></canvas>
    <video id="video" name="video" playsinline="" style="-webkit-transform:scaleX(-1);
    transform:scaleX(-1);
    visibility:hidden;
@@ -51,8 +53,32 @@ position:absolute;
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
 <script>
 
-
 const TRIANGULATION = [
+    0,37,72,0,11,72,0,267,302,0,11,302,11,12,72,12,72,38,11,12,302,12,268,302,
+    12,13,38,13,82,38,12,13,268,13,312,268,
+    14,15,87,15,86,87,14,15,317,15,316,317,15,16,86,16,85,86,15,16,316,16,315,316,
+    16,17,85,17,84,85,16,17,315,17,314,315,
+    37,72,39,72,73,39,72,38,73,38,41,73,38,82,41,82,81,41,
+    87,178,179,87,86,179,86,179,180,86,85,180,85,180,181,85,84,181,
+    39,73,40,73,74,40,73,41,74,41,42,74,41,81,42,81,80,42,
+    178,179,88,179,89,88,179,89,90,179,180,90,180,90,91,180,181,91,
+    40,185,184,40,74,184,74,42,184,42,183,184,42,80,183,80,191,183,
+    88,95,96,88,89,96,89,90,96,90,77,96,90,91,77,91,146,77,
+    185,61,76,185,184,76,184,183,76,183,62,76,183,191,62,
+    146,61,76,146,77,76,77,76,62,77,96,62,96,95,62,
+    267,302,269,302,303,269,302,268,303,268,271,303,268,312,271,312,311,271,
+    317,402,403,317,316,403,316,403,404,316,315,404,315,404,405,315,314,405,
+    269,303,270,303,304,270,303,271,304,271,272,304,271,311,272,311,310,272,
+    402,403,318,403,319,318,403,319,320,403,404,320,404,320,321,404,405,321,
+    270,409,408,270,304,408,304,272,408,272,407,408,272,310,407,310,415,407,
+    318,324,325,318,319,325,319,320,325,320,307,325,320,321,307,321,375,307,
+    409,291,306,409,408,306,408,407,306,407,292,306,407,415,292,
+    375,291,306,375,307,306,307,306,292,307,325,292,325,324,292
+    ];
+
+
+
+const TRIANGULATION_origin = [
     127, 34, 139, 11, 0, 37, 232, 231, 120, 72, 37, 39, 128, 121, 47, 232, 121,
     128, 104, 69, 67, 175, 171, 148, 157, 154, 155, 118, 50, 101, 73, 39, 40, 9,
     151, 108, 48, 115, 131, 194, 204, 211, 74, 40, 185, 80, 42, 183, 40, 92,
@@ -225,8 +251,13 @@ const TRIANGULATION = [
 
 
 let scatterGLHasInitialized = false, scatterGL;
-let ctx, videoWidth, videoHeight, video, canvas;
+let ctx, ctx1,videoWidth, videoHeight, video, canvas,canvas1;
+let canvasBlur050,canvasBlur025,contextBlur050,contextBlur025;
 const stats = new Stats();
+
+
+
+
 
 
 function drawPath(ctx, points, closePath) {
@@ -240,8 +271,12 @@ function drawPath(ctx, points, closePath) {
   if (closePath) {
     region.closePath();
   }
-  ctx.stroke(region);
+  //ctx.stroke(region);
+  ctx.fill(region);
+
 }
+
+
 
 
 
@@ -264,7 +299,7 @@ function drawPath(ctx, points, closePath) {
 
         // Prefer camera resolution nearest to 1280x720.
 
-        var constraints = { audio: false, video: { width: 1280, height: 720 } };
+        var constraints = { audio: false, video: { width: 300, height: 300 } };
 
         navigator.mediaDevices.getUserMedia(constraints)
         .then(function(stream) {
@@ -281,17 +316,56 @@ function drawPath(ctx, points, closePath) {
   canvas = document.getElementById('output');
   canvas.width = videoWidth;
   canvas.height = videoHeight;
+
+  canvas1 = document.getElementById('output1');
+  canvas1.width = videoWidth;
+  canvas1.height = videoHeight;
+
+
   const canvasContainer = document.querySelector('.canvas-wrapper');
   canvasContainer.style = `width: ${videoWidth}px; height: ${videoHeight}px`;
 
   ctx = canvas.getContext('2d');
   ctx.translate(canvas.width, 0);
   ctx.scale(-1, 1);
-  ctx.fillStyle = '#32EEDB';
-  ctx.strokeStyle = '#32EEDB';
-  ctx.lineWidth = 0.5;
+
+  ctx1 = canvas1.getContext('2d');
+  ctx1.translate(canvas1.width, 0);
+  ctx1.scale(-1, 1);
 
 
+
+
+        // 0.5倍, 0.25倍の内部キャンバス生成
+        canvasBlur050 = document.createElement("canvas");
+        canvasBlur050.width = canvas.width * 0.5;
+        canvasBlur050.height = canvas.height * 0.5;
+        canvasBlur025 = document.createElement("canvas");
+        canvasBlur025.width = canvas.width * 0.5;
+        canvasBlur025.height = canvas.height * 0.5;
+
+        contextBlur025 = canvasBlur025.getContext('2d');
+        contextBlur050 = canvasBlur050.getContext('2d');
+        contextBlur025.translate(canvasBlur025.width, 0);
+        contextBlur025.scale(-0.5, 0.5);
+        contextBlur050.translate(canvasBlur050.width, 0);
+        contextBlur050.scale(-1, 1);
+
+
+        contextBlur025.fillStyle = "rgba(" + [255, 100, 70, 0.2] + ")";
+        //contextBlur025.strokeStyle = "rgba(" + [255, 100, 70, 0.15] + ")";
+        contextBlur025.lineWidth = 0.1;
+
+        // 0.5倍の内部キャンバスに拡大
+
+
+/*
+  ctx1.fillStyle = "rgba(" + [255, 0, 0, 0.3] + ")";
+  ctx1.strokeStyle = "rgba(" + [200, 200, 200, 0.2] + ")";
+  ctx1.lineWidth = 0.5;
+
+  ctx1.filter = 'blur(2px)';
+*/
             main();
           };
         })
@@ -318,7 +392,6 @@ function drawPath(ctx, points, closePath) {
 
 async function main()
 {
-
 	  stats.showPanel(0);  // 0: fps, 1: ms, 2: mb, 3+: custom
       document.getElementById('main').appendChild(stats.dom);
         // Load the MediaPipe facemesh model assets.
@@ -335,11 +408,29 @@ async function main()
         // which is an array of 21 3-D landmarks.
         async function tracking()
  {
+
  	      stats.begin();
           let faces = await model.estimateFaces(video);
 
+
+        contextBlur050.drawImage(canvasBlur025, 0, 0, canvasBlur025.width, canvasBlur025.height, 0, 0, canvasBlur050.width, canvasBlur050.height);
+
+
+       ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+
+      // 元のキャンバスに拡大して合成
+        ctx1.drawImage(canvasBlur050, 0, 0, canvasBlur050.width, canvasBlur050.height, 0, 0, canvas.width, canvas.height);
+
           ctx.drawImage(
           video, 0, 0, videoWidth, videoHeight, 0, 0, canvas.width, canvas.height);
+
+
+
+//↓この位置超重要！！
+
+
+          contextBlur025.clearRect(0, 0, canvas1.width, canvas1.height);
+          contextBlur050.clearRect(0, 0, canvas1.width, canvas1.height);
 
 
 
@@ -355,22 +446,17 @@ async function main()
             TRIANGULATION[i * 3 + 2]
           ].map(index => keypoints[index]);
 
-          drawPath(ctx, points, true);
+          drawPath(contextBlur025, points, true);
         }
 
-
-
       // Log facial keypoints.
-     /* for (let i = 0; i < keypoints.length; i++)
+      for (let i = 0; i < keypoints.length; i++)
       {
-        const [x, y, z] = keypoints[i];
-        console.log(`Keypoint ${i}: [${x}, ${y}, ${z}]`);*/
-
-        //ctx.beginPath();
-        //ctx.arc(x, y, 1 /* radius */, 0, 2 * Math.PI);
-        //ctx.fill();
-     // }
+        //const [x, y, z] = keypoints[i];
+        //console.log(`Keypoint ${i}: [${x}, ${y}, ${z}]`);
+      }
     }
+
 
 
     if (scatterGL != null)
@@ -396,11 +482,17 @@ async function main()
     }
 
 
+
+
   }
+
+
  stats.end();
+
  requestAnimationFrame(tracking);
  };
  tracking();
+
 }
 
 
