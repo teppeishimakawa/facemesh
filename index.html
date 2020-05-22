@@ -25,6 +25,11 @@ top:50%;
 position:absolute;
 }
 
+#output1
+{
+filter: blur(3px) opacity(40%);
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/three@0.106.2/build/three.min.js"></script>
 <script src="./stats.min.js"></script>
@@ -268,7 +273,7 @@ function isMobile()
   return isAndroid || isiOS;
 }
 
-const VIDEO_SIZE = 500;
+const VIDEO_SIZE = 300;
 const mobile = isMobile();
 
 
@@ -346,10 +351,10 @@ function drawPath(ctx, points, closePath)
 
 
 
-        ctx1.fillStyle = "rgba(" + [220, 20, 60, 0.4] + ")";
+        ctx1.fillStyle = "rgba(" + [220, 20, 60, 1] + ")";
         //ctx1.strokeStyle = "rgba(" + [255, 100, 70, 0.15] + ")";
         ctx1.lineWidth = 0.1;
-        ctx1.filter = 'blur(2px)';
+        //ctx1.filter = 'blur(2px)';
 
             main();
           };
@@ -460,6 +465,7 @@ async function main()
  };
  tracking();
 }
+
 
 
 </script>
